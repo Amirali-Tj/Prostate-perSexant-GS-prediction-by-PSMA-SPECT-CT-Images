@@ -53,8 +53,8 @@ class imageFusionCNN :
         return self._model
 
 
-#fuse = imageFusionCNN()
-#fuse.build()
-#fuse.load_weights(channel_last_weights)
-#model = fuse.get_model()
-#model.summary()
+fuse = imageFusionCNN()
+fuse.build()
+fuse.load_weights(channel_last_weights)
+model = fuse.get_model()
+model.summary()
