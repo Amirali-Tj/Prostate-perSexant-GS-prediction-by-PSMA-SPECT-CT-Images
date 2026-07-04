@@ -5,50 +5,65 @@ import numpy as np
 from pprint import pprint
 import collections
 
-class kerasWeightsConstruct :
-    def __init__(self , statDict : collections.OrderedDict):
-        self.stat = statDict
-        self._sampleLayerNames()
+# extracting and converting original pth weights to custom weight dict for keras
 
-    def kerasWeightConstructor(self) :
-        for layer , value in self.stat.items() :
+def reformatWeightForIFCNN(pth , channel_convert=True) :
+    stat = torch.load(
+        pth , 
+        map_location=torch.device('cpu')
+    )
+
+    if channel_convert == True :
+        chan_ix = -1
+        for layer , value in stat.items() :
             if np.size(value.shape) == 4 :
-                self.stat[layer] = np.transpose(
-                    value ,
-                    axes=(2 , 3 , 1 , 0)
-                )
-        return self.stat
+                stat[layer] = np.transpose(
+                        value ,
+                        axes=(2 , 3 , 1 , 0)
+                    )
+    else :
+        chan_ix = 1
+    
+    # custom weight dict
+    weights = {
+        "conv1" : {} ,
+        "conv2" : {
+            "conv" : {} ,
+            "bn" : {}
+        } ,
+        "conv3" : {
+            "conv" : {} ,
+            "bn" : {}
+        } ,
+        "conv4" : {}
+    }
 
-    def _sampleLayerNames(self) :
-        names = [
-            "conv1_weight" , 
-            "conv2_weight" ,
-            "conv3_weight" ,
-            "conv4_weight" ,
-            "conv4_bias" ,
-            "conv2_bn_weight" ,
-            "conv2_bn_bias" ,
-            "conv2_bn_running_mean" ,
-            "conv2_bn_running_var" ,
-            "conv3_bn_weight" ,
-            "conv3_bn_bias" ,
-            "conv3_bn_running_mean" ,
-            "conv3_bn_running_var"
-        ]
-        print("example dict layer names : ")
-        pprint(names)   
+    # define the fields
+
+    weights["conv1"]["weight"] = np.array(stat["conv1.weight"])
+    weights["conv1"]["bias"]   = np.zeros(shape=stat["conv1.weight"].shape[chan_ix] , dtype=np.float32)
+    #---
+    weights["conv2"]["conv"]["weight"] = np.array(stat["conv2.conv.weight"])
+    weights["conv2"]["conv"]["bias"]   = np.zeros(shape=stat["conv2.conv.weight"].shape[chan_ix] , dtype=np.float32)
+    weights["conv2"]["bn"]["weight"]   = np.array(stat["conv2.bn.weight"])
+    weights["conv2"]["bn"]["bias"]     = np.array(stat["conv2.bn.bias"])
+    weights["conv2"]["bn"]["running_mean"]     = np.array(stat["conv2.bn.running_mean"])
+    weights["conv2"]["bn"]["running_variance"] = np.array(stat["conv2.bn.running_var"])
+    #---
+    weights["conv3"]["conv"]["weight"] = np.array(stat["conv3.conv.weight"])
+    weights["conv3"]["conv"]["bias"]   = np.zeros(shape=stat["conv3.conv.weight"].shape[chan_ix] , dtype=np.float32)
+    weights["conv3"]["bn"]["weight"]   = np.array(stat["conv3.bn.weight"])
+    weights["conv3"]["bn"]["bias"]     = np.array(stat["conv3.bn.bias"])
+    weights["conv3"]["bn"]["running_mean"]     = np.array(stat["conv3.bn.running_mean"])
+    weights["conv3"]["bn"]["running_variance"] = np.array(stat["conv3.bn.running_var"])
+    #---
+    weights["conv4"]["weight"] = np.array(stat["conv4.weight"])
+    weights["conv4"]["bias"]   = np.array(stat["conv4.bias"])
 
 
 
+    return weights  
 
-#--- run test  
-model = torch.load(
-    "fusionWeights/IFCNN-MAX.pth" , 
-    map_location=torch.device('cpu')
-)
-
-convert = kerasWeightsConstruct(model)
-weights = convert.kerasWeightConstructor()
-for layer , value in weights.items() :
-    print(layer , " :" , value.shape)
+#-----
+#w = reformatWeightForIFCNN("fusionWeights/IFCNN-MAX.pth" , channel_convert=True)
 
