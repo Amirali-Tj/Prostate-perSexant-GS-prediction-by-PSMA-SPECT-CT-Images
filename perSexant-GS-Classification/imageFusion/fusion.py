@@ -2,7 +2,8 @@ import collections
 import tensorflow as tf
 import keras
 from keras.layers import Conv2D , ReLU , BatchNormalization , ZeroPadding2D , Average , Add , Maximum
-from _ifcnn_weight import w
+from _ifcnn_weight import weights as wFormat
+from _ifcnn_weight import reformatWeightForIFCNN
 from pprint import pprint
 
 # implemet the IFCNN model in keras and load weights on the model
@@ -13,9 +14,9 @@ class ConvBlock(keras.layers.Layer) :
         self.Conv2D    = Conv2D(filters=64 , kernel_size=3 , padding="same" , strides=1)
         self.Relu      = ReLU()
         self.batchnorm = BatchNormalization()
-    def call(self , tensor):
+    def call(self , tensor , training=None):
         x = self.Conv2D(tensor)
-        x = self.batchnorm(x)
+        x = self.batchnorm(x , training=training)
         x = self.Relu(x)
         
         return x
@@ -73,61 +74,68 @@ class imageFusionCNN :
         self._model = model
 
     def load_weights(self , weights : dict) :
-        for layer in self._model.layers :
-            if layer.name == "conv1" :
-                layer.set_weights(
-                    [
-                        weights["conv1"]["weight"] ,
-                        weights["conv1"]["bias"]
-                    ]
-                )
-            elif layer.name == "conv2" : 
-                layer.Conv2D.set_weights(
-                    [
-                        weights["conv2"]["conv"]["weight"] , 
-                        weights["conv2"]["conv"]["bias"]
-                    ]
-                )
-                layer.batchnorm.set_weights(
-                    [
-                        weights["conv2"]["bn"]["weight"] ,
-                        weights["conv2"]["bn"]["bias"] ,
-                        weights["conv2"]["bn"]["running_mean"] ,
-                        weights["conv2"]["bn"]["running_variance"]
+        try :
+            for layer in self._model.layers :
+                if layer.name == "conv1" :
+                    layer.set_weights(
+                        [
+                            weights["conv1"]["weight"] ,
+                            weights["conv1"]["bias"]
+                        ]
+                    )
+                elif layer.name == "conv2" : 
+                    layer.Conv2D.set_weights(
+                        [
+                            weights["conv2"]["conv"]["weight"] , 
+                            weights["conv2"]["conv"]["bias"]
+                        ]
+                    )
+                    layer.batchnorm.set_weights(
+                        [
+                            weights["conv2"]["bn"]["weight"] ,
+                            weights["conv2"]["bn"]["bias"] ,
+                            weights["conv2"]["bn"]["running_mean"] ,
+                            weights["conv2"]["bn"]["running_variance"]
 
-                    ]
-                )
-            elif layer.name == "conv3" : 
-                layer.Conv2D.set_weights(
-                    [
-                        weights["conv3"]["conv"]["weight"] , 
-                        weights["conv3"]["conv"]["bias"]
-                    ]
-                )
-                layer.batchnorm.set_weights(
-                    [
-                        weights["conv3"]["bn"]["weight"] ,
-                        weights["conv3"]["bn"]["bias"] ,
-                        weights["conv3"]["bn"]["running_mean"] ,
-                        weights["conv3"]["bn"]["running_variance"]
-                    ]
-                )
-            elif layer.name == "conv4" :
-                layer.set_weights(
-                    [
-                        weights["conv4"]["weight"] ,
-                        weights["conv4"]["bias"]
-                    ]
-                )
+                        ]
+                    )
+                elif layer.name == "conv3" : 
+                    layer.Conv2D.set_weights(
+                        [
+                            weights["conv3"]["conv"]["weight"] , 
+                            weights["conv3"]["conv"]["bias"]
+                        ]
+                    )
+                    layer.batchnorm.set_weights(
+                        [
+                            weights["conv3"]["bn"]["weight"] ,
+                            weights["conv3"]["bn"]["bias"] ,
+                            weights["conv3"]["bn"]["running_mean"] ,
+                            weights["conv3"]["bn"]["running_variance"]
+                        ]
+                    )
+                elif layer.name == "conv4" :
+                    layer.set_weights(
+                        [
+                            weights["conv4"]["weight"] ,
+                            weights["conv4"]["bias"]
+                        ]
+                    )
+        except KeyError :
+                print("Warning your weights are not in true format , they didn't SET")
+                print("use following format : ")
+                pprint(wFormat)
             
     
     def get_model(self) :
         return self._model
 
+
 #-----
-#fuse = imageFusionCNN(fuseType="SUM")
+#w = reformatWeightForIFCNN(pth="fusionWeights/IFCNN-SUM.pth")
+
+#fuse = imageFusionCNN(fuseType="SUM" , data_format="channel_last")
 #fuse.build()
 #fuse.load_weights(w)
-
 #model = fuse.get_model()
 #model.summary()
