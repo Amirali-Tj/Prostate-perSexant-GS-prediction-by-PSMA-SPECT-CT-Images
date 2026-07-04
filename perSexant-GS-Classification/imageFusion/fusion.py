@@ -1,6 +1,7 @@
+import collections
 import tensorflow as tf
 import keras
-from keras.layers import Conv2D , ReLU , BatchNormalization , ZeroPadding2D , Average
+from keras.layers import Conv2D , ReLU , BatchNormalization , ZeroPadding2D , Average , Add , Maximum
 #from _ifcnn_weight import channel_last_weights
 
 # implemet the IFCNN model in keras and load weights on the model
@@ -36,24 +37,33 @@ class imageFusionCNN :
         Conv2     = ConvBlock()
         Conv3     = ConvBlock()
         Conv4     = Conv2D(filters=3, kernel_size=1 , name="conv4")
-        average   = Average() 
+        mean      = Average() 
+        sum       = Add()
+        max       = Maximum()
 
         def forward() :
-            # image 1
+            # image 1 feature extraction
             x1 = ZeroPad2D(inpt_1)
             x1 = Conv1(x1)
             x1 = Conv2(x1)
 
-            # image 2
+            # image 2 feature extraction
             x2 = ZeroPad2D(inpt_2)
             x2 = Conv1(x2)
             x2 = Conv2(x2)
 
-            # merge 
-            mrgX = average([x1 , x2])
-            mrgX = Conv3(mrgX)
-            mrgX = Conv4(mrgX)
-            return mrgX
+            # feature Fusion
+            if self.type == "MEAN" :
+                fuseX = mean([x1 , x2])
+            elif self.type == "SUM" :
+                fuseX = sum([x1 , x2])
+            elif self.type == "MAX" :
+                fuseX = max([x1 , x2])
+
+            # feature reconstruction
+            fuseX = Conv3(fuseX)
+            fuseX = Conv4(fuseX)
+            return fuseX
         
         model = keras.Model(
             inputs  = [inpt_1 , inpt_2] ,
@@ -61,7 +71,7 @@ class imageFusionCNN :
         )
         self._model = model
 
-    def load_weights(self , weights) :
+    def load_weights(self , weights : collections.OrderedDict) :
         for layer in self._model.layers :
             if layer.name in list(weights.keys()) :
                 layer.set_weights(weights[layer.name])
@@ -70,7 +80,7 @@ class imageFusionCNN :
         return self._model
 
 
-fuse = imageFusionCNN()
+fuse = imageFusionCNN(fuseType="SUM")
 fuse.build()
 model = fuse.get_model()
 model.summary()
