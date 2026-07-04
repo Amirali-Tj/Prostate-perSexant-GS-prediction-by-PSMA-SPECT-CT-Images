@@ -5,7 +5,43 @@ import numpy as np
 from pprint import pprint
 import collections
 
-# extracting and converting original pth weights to custom weight dict for keras
+# extracting and converting original IFCNN .pth weights to custom weight dict for keras
+
+# custom weight dict
+weights = {
+    "conv1" : {
+        "weight" : None ,
+        "bias"   : None
+    } ,
+    "conv2" : {
+        "conv" : {
+            "weight" : None ,
+            "bias"   : None 
+        } ,
+        "bn" : {
+            "weight" : None ,
+            "bias"   : None ,
+            "running_mean" : None ,
+            "running_var"  : None 
+        }
+    } ,
+    "conv3" : {
+        "conv" : {
+            "weight" : None ,
+            "bias"   : None
+        } ,
+        "bn" : {
+            "weight" : None ,
+            "bias"   : None ,
+            "running_mean" : None ,
+            "running_var"  : None
+        }
+    } ,
+    "conv4" : {
+        "weight" : None ,
+        "bias"   : None
+    }
+}
 
 def reformatWeightForIFCNN(pth , channel_convert=True) :
     stat = torch.load(
@@ -24,20 +60,6 @@ def reformatWeightForIFCNN(pth , channel_convert=True) :
     else :
         chan_ix = 1
     
-    # custom weight dict
-    weights = {
-        "conv1" : {} ,
-        "conv2" : {
-            "conv" : {} ,
-            "bn" : {}
-        } ,
-        "conv3" : {
-            "conv" : {} ,
-            "bn" : {}
-        } ,
-        "conv4" : {}
-    }
-
     # define the fields
 
     weights["conv1"]["weight"] = np.array(stat["conv1.weight"])
@@ -62,8 +84,7 @@ def reformatWeightForIFCNN(pth , channel_convert=True) :
 
 
 
-    return weights  
+    return weights
 
-#-----
-#w = reformatWeightForIFCNN("fusionWeights/IFCNN-MAX.pth" , channel_convert=True)
+
 
