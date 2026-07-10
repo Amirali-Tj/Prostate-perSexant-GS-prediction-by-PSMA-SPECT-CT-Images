@@ -5,8 +5,17 @@ import numpy as np
 import nrrd
 
 class volume_crop : # fill mode add(constant , no fill)
-    def __init__(self , cubeDim):
-        self.cubeDim = cubeDim
+    def __init__(self , cubeDim , outBorderRemoval=[]):
+        self.cubeDim    = cubeDim
+        self.outRemovalVal = tf.convert_to_tensor(outBorderRemoval , dtype=tf.float64)
+    # replace volume with the constant outside the lable borders
+    def _outRemove(self , img_arr , label_arr) :
+        outRemoved = tf.where(
+            label_arr == 0.0 ,
+            self.outRemovalVal ,
+            img_arr
+        )
+        return outRemoved
     def _volCenterExtract(self , label_arr) :
         planeZero   = tf.where(label_arr == 0 , False , True)
         zPlaneLabel = tf.math.reduce_any(planeZero , axis=[0 , 1] , keepdims=False)
@@ -157,7 +166,17 @@ class volume_crop : # fill mode add(constant , no fill)
 
         labelCr = label_arr[lxDimIx:rxDimIx , lyDimIx:ryDimIx , lzDimIx:rzDimIx]
         imgCr   = img_arr[lxDimIx:rxDimIx , lyDimIx:ryDimIx , lzDimIx:rzDimIx]
+
+        imgCr = tf.cond(
+            tf.math.not_equal(
+                tf.size(self.outRemovalVal) ,
+                0
+            ) ,
+            lambda : self._outRemove(imgCr , labelCr) , 
+            lambda : imgCr
+        )
+
         return imgCr , labelCr
         
-class sexantCrop :
+def sexantCrop(img_arr , label_arr) :
     pass
