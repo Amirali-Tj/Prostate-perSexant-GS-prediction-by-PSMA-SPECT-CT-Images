@@ -4,7 +4,7 @@ import SimpleITK as sitk
 import numpy as np
 import nrrd
 
-class volume_crop : # make it graph compatable
+class volume_crop : # fill mode add(constant , no fill)
     def __init__(self , cubeDim):
         self.cubeDim = cubeDim
     def _volCenterExtract(self , label_arr) :
