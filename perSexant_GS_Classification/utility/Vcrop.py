@@ -27,10 +27,10 @@ class volume_crop : # fill mode add(constant , no fill)
             i_max = tf.shape(labelPlane)[0] - tf.math.argmax(tf.reverse(labelPlane , axis=[0]) , axis=0 , output_type=tf.int32) - 1
             return i_min , i_max
 
-        zMin , zMax = border(zPlaneLabel)
-        yMin , yMax = border(yPlaneLabel)
-        xMin , xMax = border(xPlaneLabel)
-        volumeCenter = (tf.cast((xMin + xMax)/2 , dtype=tf.int32) , tf.cast((yMin + yMax)/2 , dtype=tf.int32) , tf.cast((zMin + zMax)/2 , dtype=tf.int32))
+        self.zMin , self.zMax = border(zPlaneLabel)
+        self.yMin , self.yMax = border(yPlaneLabel)
+        self.xMin , self.xMax = border(xPlaneLabel)
+        volumeCenter = (tf.cast((self.xMin + self.xMax)/2 , dtype=tf.int32) , tf.cast((self.yMin + self.yMax)/2 , dtype=tf.int32) , tf.cast((self.zMin + self.zMax)/2 , dtype=tf.int32))
         return volumeCenter
   
     def cropping(self , img_arr , label_arr , merge_arr) : # add tf.cond
@@ -177,6 +177,90 @@ class volume_crop : # fill mode add(constant , no fill)
         )
 
         return imgCr , labelCr
+
+    
+class SexantCrop(volume_crop) : # base on the channel-last format and RAS coordination
+    def _border(labelPlane) :
+            i_min = tf.math.argmax(labelPlane , axis=0 , output_type=tf.int32)
+            i_max = tf.shape(labelPlane)[0] - tf.math.argmax(tf.reverse(labelPlane , axis=[0]) , axis=0 , output_type=tf.int32) - 1
+            return i_min , i_max
+    
+    def _planelabelExtractor(bool_arr) :
+        XPlane  = tf.math.reduce_any(bool_arr , axis=[1 , 2] , keepdims=False)
+        YPlane  = tf.math.reduce_any(bool_arr , axis=[0 , 2] , keepdims=False)
+        ZPlane  = tf.math.reduce_any(bool_arr , axis=[0 , 1] , keepdims=False)
         
-def sexantCrop(img_arr , label_arr) :
-    pass
+        return XPlane , YPlane , ZPlane
+    
+    def _sixPartDevision(self , img_arr , label_arr) : # finding sexant borders
+        self._volCenterExtract(label_arr)
+        
+        Zlength = self.zMax - self.zMin
+        planeA  = tf.cast(self.zMin + Zlength/3 , dtype=tf.int32)
+        planeB  = tf.cast(self.zMax - Zlength/3 , dtype=tf.int32)
+
+        base_label = label_arr[: , : , planeB:self.zMax + 1]
+        mid_label  = label_arr[: , : , planeA:planeB + 1]
+        apex_label = label_arr[: , : , self.zMin:planeA + 1]
+        base_img   = img_arr[: , : , planeB:self.zMax + 1]
+        mid_img    = img_arr[: , : , planeA:planeB + 1]
+        apex_img   = img_arr[: , : , self.zMin:planeA + 1]
+
+        baseBool = tf.where(base_label == 0 , False , True)
+        midBool  = tf.where(mid_label == 0  , False , True)
+        apexBool = tf.where(apex_label == 0 , False , True)
+
+        baseXplane = tf.math.reduce_any(baseBool , axis=[1 , 2] , keepdims=False)
+        midXplane  = tf.math.reduce_any(midBool  , axis=[1 , 2] , keepdims=False)
+        apexXplane = tf.math.reduce_any(apexBool , axis=[1 , 2] , keepdims=False)
+
+        baseXmin , baseXmax = self._border(baseXplane)
+        midXmin  , midXmax  = self._border(midXplane)
+        apexXmin , apexXmax = self._border(apexXplane)
+
+        basePlaneC = tf.cast((baseXmin + baseXmax)/2 , dtype=tf.int32)
+        midPlaneC  = tf.cast((midXmin + midXmax)/2   , dtype=tf.int32)
+        apexPlaneC = tf.cast((apexXmin + apexXmax)/2 , dtype=tf.int32)
+
+        self.rightBase_label  = base_label[basePlaneC:baseXmax + 1 , : , :]
+        self.rightBase_img    = base_img[basePlaneC:baseXmax + 1 , : , :] 
+        self.leftBase_label   = base_label[baseXmin:basePlaneC + 1 , : , :]
+        self.leftBase_img     = base_img[baseXmin:basePlaneC + 1 , : , :]
+
+        self.rightMid_label   = mid_label[midPlaneC:midXmax + 1 , : , :]
+        self.rightMid_img     = mid_img[midPlaneC:midXmax + 1 , : , :]
+        self.leftMid_label    = mid_label[midXmin:midPlaneC + 1 , : , :]
+        self.leftMid_img      = mid_img[midXmin:midPlaneC + 1 , : , :]
+
+        self.rightApex_label  = apex_label[apexPlaneC:apexXmax + 1 , : , :]
+        self.rightApex_img    = apex_img[apexPlaneC:apexXmax + 1 , : , :]
+        self.leftApex_label   = apex_label[apexXmin:apexPlaneC + 1 , : , :]
+        self.leftApex_img     = apex_img[apexXmin:apexPlaneC + 1 , : , :]
+
+    def sextantCropping(self , img_arr , label_arr) :
+        self._sixPartDevision(img_arr , label_arr)
+
+        rightBaseImg , rightBaseLabel = super().cropping(self.rightBase_img , self.rightBase_label)
+        leftBaseImg  , leftBaseLabel  = super().cropping(self.leftBase_img , self.leftBase_label)
+
+        rightMidImg  , rightMidLabel   = super().cropping(self.rightMid_img , self.rightMid_label)
+        leftMidImg   , leftMidLabel   = super().cropping(self.leftMid_img  , self.leftMid_label)
+
+        rightApexImg , rightApexLabel = super().cropping(self.rightApex_img , self.rightApex_label)
+        leftApexImg  , leftApexLabel  = super().cropping(self.leftApex_img , self.leftApex_label)
+
+        return {
+            "base" : {
+                "right" : (rightBaseImg , rightBaseLabel) ,
+                "left"  : (leftBaseImg , leftBaseLabel)
+            } ,
+            "mid" : {
+                "right" : (rightMidImg , rightMidLabel) ,
+                "left"  : (leftMidImg , leftMidLabel)
+            } ,
+            "apex" : {
+                "right" : (rightApexImg , rightApexLabel) ,
+                "left"  : (leftApexImg  , leftApexLabel)
+            }
+        }
+        
