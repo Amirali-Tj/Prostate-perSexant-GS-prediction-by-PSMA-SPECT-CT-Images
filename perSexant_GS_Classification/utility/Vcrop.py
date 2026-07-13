@@ -180,7 +180,7 @@ class volume_crop : # fill mode add(constant , no fill)
 
     
 class SexantCrop(volume_crop) : # base on the channel-last format and RAS coordination
-    def _border(labelPlane) :
+    def _border(self , labelPlane) :
             i_min = tf.math.argmax(labelPlane , axis=0 , output_type=tf.int32)
             i_max = tf.shape(labelPlane)[0] - tf.math.argmax(tf.reverse(labelPlane , axis=[0]) , axis=0 , output_type=tf.int32) - 1
             return i_min , i_max
@@ -196,8 +196,8 @@ class SexantCrop(volume_crop) : # base on the channel-last format and RAS coordi
         self._volCenterExtract(label_arr)
         
         Zlength = self.zMax - self.zMin
-        planeA  = tf.cast(self.zMin + Zlength/3 , dtype=tf.int32)
-        planeB  = tf.cast(self.zMax - Zlength/3 , dtype=tf.int32)
+        planeA  = self.zMin + tf.cast(Zlength/3 , dtype=tf.int32)
+        planeB  = self.zMax - tf.cast(Zlength/3 , dtype=tf.int32)
 
         base_label = label_arr[: , : , planeB:self.zMax + 1]
         mid_label  = label_arr[: , : , planeA:planeB + 1]
@@ -240,14 +240,14 @@ class SexantCrop(volume_crop) : # base on the channel-last format and RAS coordi
     def sextantCropping(self , img_arr , label_arr) :
         self._sixPartDevision(img_arr , label_arr)
 
-        rightBaseImg , rightBaseLabel = super().cropping(self.rightBase_img , self.rightBase_label)
-        leftBaseImg  , leftBaseLabel  = super().cropping(self.leftBase_img , self.leftBase_label)
+        rightBaseImg , rightBaseLabel = super().cropping(self.rightBase_img , self.rightBase_label , merge_arr=tf.convert_to_tensor([0] , dtype=tf.float64))
+        leftBaseImg  , leftBaseLabel  = super().cropping(self.leftBase_img , self.leftBase_label   , merge_arr=tf.convert_to_tensor([0] , dtype=tf.float64))
 
-        rightMidImg  , rightMidLabel   = super().cropping(self.rightMid_img , self.rightMid_label)
-        leftMidImg   , leftMidLabel   = super().cropping(self.leftMid_img  , self.leftMid_label)
+        rightMidImg  , rightMidLabel   = super().cropping(self.rightMid_img , self.rightMid_label  , merge_arr=tf.convert_to_tensor([0] , dtype=tf.float64))
+        leftMidImg   , leftMidLabel   = super().cropping(self.leftMid_img  , self.leftMid_label    , merge_arr=tf.convert_to_tensor([0] , dtype=tf.float64))
 
-        rightApexImg , rightApexLabel = super().cropping(self.rightApex_img , self.rightApex_label)
-        leftApexImg  , leftApexLabel  = super().cropping(self.leftApex_img , self.leftApex_label)
+        rightApexImg , rightApexLabel = super().cropping(self.rightApex_img , self.rightApex_label , merge_arr=tf.convert_to_tensor([0] , dtype=tf.float64))
+        leftApexImg  , leftApexLabel  = super().cropping(self.leftApex_img , self.leftApex_label   , merge_arr=tf.convert_to_tensor([0] , dtype=tf.float64))
 
         return {
             "base" : {
