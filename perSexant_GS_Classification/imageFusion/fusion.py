@@ -1,7 +1,7 @@
 import collections
 import tensorflow as tf
 import keras
-from keras.layers import Conv2D , ReLU , BatchNormalization , ZeroPadding2D , Average , Add , Maximum
+from keras.layers import Conv2D , Conv3D , ReLU , BatchNormalization , ZeroPadding2D , Average , Add , Maximum , Concatenate
 from _ifcnn_weight import weights as wFormat
 from _ifcnn_weight import reformatWeightForIFCNN
 from pprint import pprint
@@ -129,6 +129,17 @@ class imageFusionCNN :
     
     def get_model(self) :
         return self._model
+
+class fusionLayer(keras.layers.Layer) : # will be inject to model
+    def __init__(self , name , kernel_size , data_format="channels_last"):
+        super().__init__(name=name)
+        self.Conv3D = Conv3D(filter=3 , kernel_size=kernel_size , padding="same" , data_format=data_format)
+        self.Cocat  = Concatenate(axis=-1)
+    def __call__(self , listofTensor , training=None) :
+        x = self.Cocat(listofTensor)
+        x = self.Conv3D(x)
+        return x
+    
 
 
 #-----
