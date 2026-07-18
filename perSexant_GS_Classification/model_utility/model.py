@@ -1,5 +1,6 @@
 import tensorflow as tf
 import keras
+import backbone as bbn
 
 class dotAttention(keras.layers.Layer) : # input is same on 3D volume
     def __init__(self , name , type=None):
@@ -32,5 +33,43 @@ class dotAttention(keras.layers.Layer) : # input is same on 3D volume
         else :
             return x
 
-class BilinearCNN : 
-    pass
+
+
+class BilinearCnnWithAttention() :
+    def __init__(self, backbone="ResNet50") :
+        self.input     = keras.Input(shape=(64 , 64 , 3)) 
+        self.matmul    = keras.ops.matmul
+        self.Attention = dotAttention(name="dotProduct" , type="SUM") # type mention as argument
+        self.ConvertToFirst  = keras.layers.Permute(dims=(3 , 1 , 2)) 
+        self.permute         = keras.layers.Permute(dims=(2 , 1))
+        self.divide          = keras.ops.divide
+
+        if backbone == "ResNet50" :
+            self.backbone      = bbn.ResNet50
+            outputShape        = self.backbone.layers[-1].output.shape
+            self.featurElement = outputShape[1]*outputShape[2] # For 2D Network
+            self.reshape  = keras.layers.Reshape(target_shape=(outputShape[3] , self.featurElement)) # For 2D Network
+    
+    def build(self) : 
+        # forward
+        x  = self.backbone(self.input)
+        x  = self.ConvertToFirst(x)
+        xR = self.reshape(x)
+        xT = self.permute(xR)
+        x  = self.matmul(xR , xT)
+        x  = self.divide(x , self.featurElement) 
+        x  = self.Attention(x)
+
+        # build model
+        model = keras.Model(
+            inputs  = self.input ,
+            outputs = x
+        )
+
+        return model
+    
+
+model   = BilinearCnnWithAttention()
+myModel = model.build()
+myModel.summary()
+
