@@ -10,7 +10,10 @@ for name in os.listdir(mainPath) :
         print(name)
         container      = os.path.join(mainPath , name , "PSMA")
         pFolderName    = os.listdir(container)
-        pFolderName.remove(".DS_Store") # for mac
+        try : 
+            pFolderName.remove(".DS_Store") # for mac
+        except : 
+            pass
         fullFolderName = os.path.join(container , pFolderName[0])
 
         try :
