@@ -12,8 +12,8 @@ class ConvBlock(keras.layers.Layer) :
     def __init__(self , name) :
         super().__init__(name=name)
         self.Conv2D    = Conv2D(filters=64 , kernel_size=3 , padding="same" , strides=1)
-        self.Relu      = ReLU()
         self.batchnorm = BatchNormalization()
+        self.Relu      = ReLU()
     def call(self , tensor , training=None):
         x = self.Conv2D(tensor)
         x = self.batchnorm(x , training=training)
@@ -25,51 +25,49 @@ class imageFusionCNN :
     def __init__(self , fuseType="MEAN" , data_format="channel_last") :
         self.type   = fuseType
         self.format = data_format
-    
-    def build(self) :
+
         # model layers
         if self.format == "channel_last" :
-            inpt_1      = keras.Input(shape=(224 , 224 , 3))
-            inpt_2      = keras.Input(shape=(224 , 224 , 3))
+            self.inpt_1      = keras.Input(shape=(224 , 224 , 3))
+            self.inpt_2      = keras.Input(shape=(224 , 224 , 3))
         elif self.format == "channel_first" :
-            inpt_1      = keras.Input(shape=(3 , 224 , 224))
-            inpt_2      = keras.Input(shape=(3 , 224 , 224))
-        ZeroPad2D = ZeroPadding2D(padding=((3 , 3) , (3 , 3)))
-        Conv1     = Conv2D(filters=64, kernel_size=7 , strides=1 , name="conv1")
-        Conv2     = ConvBlock(name="conv2")
-        Conv3     = ConvBlock(name="conv3")
-        Conv4     = Conv2D(filters=3, kernel_size=1 , name="conv4")
-        mean      = Average() 
-        sum       = Add()
-        max       = Maximum()
+            self.inpt_1      = keras.Input(shape=(3 , 224 , 224))
+            self.inpt_2      = keras.Input(shape=(3 , 224 , 224))
+        self.ZeroPad2D = ZeroPadding2D(padding=((3 , 3) , (3 , 3)))
+        self.Conv1     = Conv2D(filters=64, kernel_size=7 , strides=1 , name="conv1")
+        self.Conv2     = ConvBlock(name="conv2")
+        self.Conv3     = ConvBlock(name="conv3")
+        self.Conv4     = Conv2D(filters=3, kernel_size=1 , name="conv4")
+        self.mean      = Average() 
+        self.sum       = Add()
+        self.max       = Maximum()
 
-        def forward() :
-            # image 1 feature extraction
-            x1 = ZeroPad2D(inpt_1)
-            x1 = Conv1(x1)
-            x1 = Conv2(x1)
+    def build(self) :
+        # image 1 feature extraction
+        x1 = self.ZeroPad2D(self.inpt_1)
+        x1 = self.Conv1(x1)
+        x1 = self.Conv2(x1)
 
-            # image 2 feature extraction
-            x2 = ZeroPad2D(inpt_2)
-            x2 = Conv1(x2)
-            x2 = Conv2(x2)
+        # image 2 feature extraction
+        x2 = self.ZeroPad2D(self.inpt_2)
+        x2 = self.Conv1(x2)
+        x2 = self.Conv2(x2)
 
-            # feature Fusion
-            if self.type == "MEAN" :
-                fuseX = mean([x1 , x2])
-            elif self.type == "SUM" :
-                fuseX = sum([x1 , x2])
-            elif self.type == "MAX" :
-                fuseX = max([x1 , x2])
+        # feature Fusion
+        if self.type == "MEAN" :
+            fuseX = self.mean([x1 , x2])
+        elif self.type == "SUM" :
+            fuseX = self.sum([x1 , x2])
+        elif self.type == "MAX" :
+            fuseX = self.max([x1 , x2])
 
-            # feature reconstruction
-            fuseX = Conv3(fuseX)
-            fuseX = Conv4(fuseX)
-            return fuseX
+        # feature reconstruction
+        fuseX = self.Conv3(fuseX)
+        fuseX = self.Conv4(fuseX)
         
         model = keras.Model(
-            inputs  = [inpt_1 , inpt_2] ,
-            outputs = forward()
+            inputs  = [self.inpt_1 , self.inpt_2] ,
+            outputs = fuseX
         )
         self._model = model
 
@@ -145,7 +143,7 @@ class fusionLayer(keras.layers.Layer) : # will be inject to model
 #-----
 #w = reformatWeightForIFCNN(pth="fusionWeights/IFCNN-SUM.pth")
 
-#fuse = imageFusionCNN(fuseType="SUM" , data_format="channel_last")
+#fuse = imageFusionCNN(fuseType="MAX" , data_format="channel_last")
 #fuse.build()
 #fuse.load_weights(w)
 #model = fuse.get_model()
