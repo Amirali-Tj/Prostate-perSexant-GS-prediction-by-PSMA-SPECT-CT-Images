@@ -7,7 +7,7 @@ class dotAttention(keras.layers.Layer) : # input is same on 3D volume
         super().__init__(name=name)
         self.type = type
         self.matmul   = keras.ops.matmul
-        self.softmax  = keras.layers.Softmax(axis=-1)
+        self.softmax  = keras.layers.Softmax(axis=0)
         self.multiply = keras.layers.Multiply()
         self.sum      = keras.ops.sum 
         self.mean     = keras.ops.mean 
